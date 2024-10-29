@@ -1,0 +1,422 @@
+<?php
+include('conexion.php');
+
+// Si la cookie "usuario_logeado" esta vacia, lo devuelvo al index
+if (empty($_COOKIE['usuario_logeado'])) {
+  header('Location: index.php');
+}
+
+// Agarro el id de usuario de la cookie
+$cookie = explode(";", $_COOKIE['usuario_logeado']);
+$id_usuario = $cookie[1];
+
+if (isset($_GET['proyecto'])) {
+  $id_proyecto = $_GET['proyecto'];
+  if (!is_numeric($id_proyecto)) {
+    header('Location: proyectos.php');
+  }
+} else {
+  header('Location: proyectos.php');
+}
+
+$location_matriz = "Location: matriz.php?proyecto={$id_proyecto}";
+
+// Averiguo si el usuario es_jefe
+$query = "SELECT es_jefe FROM usuarios WHERE id = '{$id_usuario}'";
+$es_jefe = $conexion->query($query)->fetch_assoc()['es_jefe'];
+
+if (isset($_POST['asociar'])) {
+  $asociar = $_POST['asociar'];
+
+  if ($asociar == 'empleado') {
+    $id_empleado = $_POST['empleado'];
+    if (!is_numeric($id_empleado)) {
+      header($location_matriz);
+    }
+    $query = "INSERT INTO usuario_proyecto (id_proyecto, id_usuario)
+              VALUES ({$id_proyecto}, {$id_empleado})";
+  } else if ($asociar == 'actividad') {
+    $id_actividad = $_POST['actividad'];
+    if (!is_numeric($id_actividad)) {
+      header($location_matriz);  
+    }
+    $query = "INSERT INTO proyecto_actividad(id_proyecto, id_actividad)
+              VALUES ({$id_proyecto}, {$id_actividad})";
+  }
+
+  $conexion->query($query);
+  $conexion->close();
+  header($location_matriz);
+}
+
+if (isset($_POST['asignar'])) {
+  $id_actividad = explode(',', $_POST['asignar'])[0];
+  $id_empleado = explode(',', $_POST['asignar'])[1];
+
+  $query = "INSERT INTO usuario_actividad (id_usuario, id_actividad, id_proyecto)
+            VALUES({$id_empleado}, {$id_actividad}, {$id_proyecto})";
+  $conexion->query($query);
+  $conexion->close();
+  header($location_matriz);
+} else if (isset($_POST['desasignar'])) {
+  $id_actividad = explode(',', $_POST['desasignar'])[0];
+  $id_empleado = explode(',', $_POST['desasignar'])[1];
+
+  $query = "DELETE FROM usuario_actividad
+            WHERE id_usuario = {$id_empleado} AND id_actividad = {$id_actividad} AND id_proyecto = {$id_proyecto}";
+  $conexion->query($query);
+  $conexion->close();
+  header($location_matriz);
+}
+
+if (isset($_POST['eliminar'])) {
+  $eliminar = $_POST['eliminar'];
+
+  if ($eliminar == 'actividad') {
+    $id_actividad = $_POST['id_actividad'];
+    if (!is_numeric($id_actividad)) {
+      header($location_matriz);
+    }
+    // Limpiamos las asignaciones de la actividad
+    $query="DELETE FROM usuario_actividad
+            WHERE id_proyecto = {$id_proyecto} AND id_actividad = {$id_actividad}";
+    $conexion->query($query);
+
+    $query = "DELETE FROM proyecto_actividad
+              WHERE id_proyecto = {$id_proyecto} AND id_actividad = {$id_actividad}";
+  } else if ($eliminar == 'empleado') {
+    $id_empleado = $_POST['id_empleado'];
+    if (!is_numeric($id_empleado)) {
+      header($location_matriz);
+    }
+    // Limpiamos las asignaciones del empleado
+    $query="DELETE FROM usuario_actividad
+            WHERE id_proyecto = {$id_proyecto} AND id_usuario = {$id_empleado}";
+    $conexion->query($query);
+
+    $query = "DELETE FROM usuario_proyecto
+              WHERE id_proyecto = {$id_proyecto} AND id_usuario = {$id_empleado}";
+  }
+
+  $conexion->query($query);
+
+  $conexion->close();
+  header($location_matriz);
+}
+
+// Traigo la info del proyecto
+$query = "SELECT * FROM proyectos WHERE id = {$id_proyecto}";
+$proyecto = $conexion->query($query)->fetch_assoc();
+
+// Traigo los empleados disponibles
+$query = "SELECT u.id id, CONCAT(u.nombre, ' ', u.apellido) nombre
+          FROM usuarios u
+          LEFT JOIN usuario_proyecto up ON u.id = up.id_usuario AND up.id_proyecto = {$id_proyecto}
+          WHERE es_jefe = 0 AND up.id_proyecto IS NULL";
+$empleados_disponibles = $conexion->query($query);
+
+// Traigo las actividades disponibles
+$query = "SELECT a.id id, a.nombre nombre
+          FROM actividades a
+          LEFT JOIN proyecto_actividad pa ON a.id = pa.id_actividad AND pa.id_proyecto = {$id_proyecto}
+          WHERE pa.id_proyecto IS NULL";
+$actividades_disponibles = $conexion->query($query);
+
+// Traigo la info necesaria para la matriz
+$query = "SELECT 
+            a.id id_actividad,
+            a.nombre actividad,
+            u.id id_usuario,
+            CONCAT(u.nombre, ' ', u.apellido) empleado,
+            IF(ua.id_actividad IS NOT NULL, 'Asignado', '') asignado
+          FROM proyecto_actividad pa
+          JOIN actividades a ON pa.id_actividad = a.id
+          JOIN usuario_proyecto up ON pa.id_proyecto = up.id_proyecto
+          JOIN usuarios u ON up.id_usuario = u.id AND u.es_jefe = 0
+          LEFT JOIN usuario_actividad ua ON a.id = ua.id_actividad AND u.id = ua.id_usuario AND ua.id_proyecto = pa.id_proyecto
+          WHERE pa.id_proyecto = {$id_proyecto}
+          ORDER BY a.nombre, u.apellido";
+$result = $conexion->query($query);
+
+// Creo la matriz
+$matriz = [];
+$lista_actividades = [];
+$lista_empleados = [];
+
+while ($fila = $result->fetch_assoc()) {
+  $actividad = [ "id_actividad" => $fila['id_actividad'], "nombre" => $fila['actividad'] ];
+  $empleado = [ "id_empleado" => $fila['id_usuario'], "nombre" => $fila['empleado'] ];
+  $asignado = $fila['asignado'];
+
+  if (!isset($lista_actividades[$actividad['id_actividad']])) {
+    $lista_actividades[$actividad['id_actividad']] = $actividad;
+  }
+
+  if (!isset($lista_empleados[$empleado['id_empleado']])) {
+    $lista_empleados[$empleado['id_empleado']] = $empleado;
+  }
+  
+  // Crear la fila para la actividad si no existe
+  if (!isset($matriz[$actividad['id_actividad']])) {
+      $matriz[$actividad['id_actividad']] = [];
+  }
+
+  // Asignar "X" o vacío en la intersección
+  $matriz[$actividad['id_actividad']][$empleado['id_empleado']] = $asignado;
+}
+
+if (empty($matriz)) {
+  $query = "SELECT 1 FROM usuario_proyecto WHERE id_proyecto = {$id_proyecto}";
+  $empleados_asociados = $conexion->query($query)->num_rows;
+
+  $query = "SELECT 1 FROM proyecto_actividad WHERE id_proyecto = {$id_proyecto}";
+  $actividades_asociadas = $conexion->query($query)->num_rows;
+}
+
+$conexion->close();
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" integrity="sha512-ZwR1/gSZM3ai6vCdI+LVF1zSq/5HznD3ZSTk7kajkaj4D292NLuduDCO1c/NT8Id+jE58KYLKT7hXnbtryGmMg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <title>Matriz</title>
+</head>
+<body>
+  <?php include('header.php'); ?>
+  <div class="w-[800px] mx-auto p-8 shadow-lg rounded-lg">
+    <a href="proyectos.php">< Volver</a>
+    <h2 class="text-3xl w-max mx-auto mb-8">Dashboard de <?php echo $proyecto['nombre']; ?></h2>
+    <h2 class="text-2xl w-max mx-auto mb-4">Matriz de responsabilidades</h2>
+    <?php if ($es_jefe) { ?>
+      <div class="flex gap-2">
+        <form method="POST" class="flex">
+          <input type="hidden" name="proyecto" value="<?php echo $id_proyecto; ?>" hidden />
+          <select name="empleado" id="empleado" class="max-w-80 h-10 px-2 rounded-l-xl" onchange="onSelectChange('empleado')">
+            <?php if ($empleados_disponibles->num_rows == 0) { ?>
+              <option value="null">No quedan empleados</option>
+            <?php } else { ?>
+              <option value="null">Asociar empleado</option>
+              <?php while($empleado = $empleados_disponibles->fetch_assoc()) { ?>
+                <option value="<?php echo $empleado['id']; ?>"><?php echo $empleado['nombre']; ?></option>
+              <?php }
+            }?>
+          </select>
+          <button
+            id="submit_asociar_empleado"
+            type="submit"
+            class="flex w-max px-2 py-2 mb-4 bg-orange-600 enabled:hover:bg-orange-500 text-white disabled:opacity-50 font-semibold rounded-r-xl transition-colors"
+            name="asociar"
+            value="empleado"
+            disabled
+          >
+            <span class="material-symbols-outlined">add</span>
+          </button>
+        </form>
+        <form method="POST" class="flex">
+          <input type="hidden" name="proyecto" value="<?php echo $id_proyecto; ?>" hidden />
+          <select name="actividad" id="actividad" class="max-w-80 h-10 px-2 rounded-l-xl" onchange="onSelectChange('actividad')">
+            <?php if ($actividades_disponibles->num_rows == 0) { ?>
+              <option value="null">No quedan actividades</option>
+            <?php } else { ?>
+              <option value="null">Asociar actividad</option>
+              <?php while($actividad = $actividades_disponibles->fetch_assoc()) { ?>
+                <option value="<?php echo $actividad['id']; ?>"><?php echo $actividad['nombre']; ?></option>
+              <?php }
+            } ?>
+          </select>
+          <button
+            id="submit_asociar_actividad"
+            type="submit"
+            class="flex w-max px-2 py-2 mb-4 bg-orange-600 enabled:hover:bg-orange-500 text-white disabled:opacity-50 font-semibold rounded-r-xl transition-colors"
+            name="asociar"
+            value="actividad"
+            disabled
+          >
+            <span class="material-symbols-outlined">add</span>
+          </button>
+        </form>
+      </div>
+    <?php }
+    if (empty($matriz)) { ?>
+      <span class="w-full py-2 bg-gray-100 rounded-xl flex flex-col justify-center items-center">
+        <p>
+          Tenés que cumplir los siguientes requisitos para mostrar la matriz:
+        </p>
+        <div class="flex items-center">
+          <?php if (empty($empleados_asociados)) { ?>
+            <div
+              class="mr-1 material-symbols-outlined text-red-600 text-xl"
+            >
+              close
+            </div>
+            Asociar al menos 1 empleado
+          <?php } else { ?>
+            <div
+              class="mr-1 material-symbols-outlined text-green-600 text-xl"
+            >
+              check
+            </div>
+            Ya tenés <?php echo $empleados_asociados; ?> empleado/s asociados.
+          <?php } ?>
+        </div>
+        <div class="flex items-center">
+          <?php if (empty($actividades_asociadas)) { ?>
+            <div
+              class="mr-1 material-symbols-outlined text-red-600 text-xl"
+            >
+              close
+            </div>
+            Asociar al menos 1 actividad
+          <?php } else { ?>
+            <div
+              class="mr-1 material-symbols-outlined text-green-600 text-xl"
+            >
+              check
+            </div>
+            Ya tenés <?php echo $actividades_asociadas; ?> actividad/es asociadas
+          <?php } ?>
+        </div>
+      </span>
+    <?php } else { ?>
+      <table class="w-full border-2 border-black">
+
+        <thead>
+          <tr class="bg-gray-200">
+            <th class="w-28 border-b border-r border-black p-2">Actividades</th>
+            <?php foreach(array_keys(reset($matriz)) as $id_empleado) { ?>
+              <th
+                class="w-28 border-b border-r border-black p-2 group <?php if ($id_empleado == $id_usuario) echo 'text-orange-600'; ?>"
+              >
+                <?php if ($es_jefe) { ?>
+                  <form method="POST" class="flex flex-col items-center">
+                    <input type="hidden" name="proyecto" value="<?php echo $id_proyecto; ?>" hidden />
+                    <input type="hidden" name="id_empleado" value="<?php echo $id_empleado; ?>" hidden />
+                    <?php echo $lista_empleados[$id_empleado]['nombre']; ?>
+                    <button
+                      type="submit"
+                      name="eliminar"
+                      value="empleado"
+                      class="w-max font-bold text-red-600 hidden group-hover:block"
+                    >
+                      Eliminar
+                    </button>
+                  </form>
+                <?php } else {
+                  echo $lista_empleados[$id_empleado]['nombre'];
+                } ?>
+              </th>
+            <?php } ?>
+          </tr>
+        </thead>
+        <tbody>
+          <?php
+          // Inserto una fila por cada resultado que trajo la query
+          // A la cuarta celda le agrego las acciones
+          foreach($matriz as $id_actividad => $empleados) {
+          ?>
+            <tr>
+              <td class="border-b border-r border-black px-2 py-1 font-bold bg-gray-200 group"> 
+                <?php if ($es_jefe) { ?>
+                  <form method="POST">
+                    <input type="hidden" name="proyecto" value="<?php echo $id_proyecto; ?>" hidden />
+                    <input type="hidden" name="id_actividad" value="<?php echo $id_actividad; ?>" hidden />
+                    <a
+                      class="hover:text-purple-500 transition-colors"
+                      href="abm/actividad.php?id=<?php echo $id_actividad; ?>&desde=matriz.php?proyecto=<?php echo $id_proyecto; ?>"
+                    >
+                      <?php echo $lista_actividades[$id_actividad]['nombre']; ?>
+                    </a>
+                    <button
+                      type="submit"
+                      name="eliminar"
+                      value="actividad"
+                      class="font-bold text-red-600 hidden group-hover:block"
+                    >
+                      Eliminar
+                    </button>
+                  </form>
+                <?php } else {
+                  echo $lista_actividades[$id_actividad]['nombre'];
+                } ?>
+              </td>
+              <?php
+              // Inserto una fila por cada resultado que trajo la query
+              // A la cuarta celda le agrego las acciones
+              foreach($empleados as $id_empleado => $asignado) {
+              ?>
+                <td class="border-b border-r border-black px-2 py-1<?php if ($asignado) echo ' bg-orange-400 font-semibold'; ?>">
+                  <?php if ($es_jefe) { ?>
+                  <form method="POST" class="flex justify-center">
+                    <input type="hidden" name="proyecto" value="<?php echo $id_proyecto; ?>" hidden />
+                    <button
+                      type="submit"
+                      name="<?php echo $asignado ? 'desasignar' : 'asignar';  ?>"
+                      value="<?php echo "{$lista_actividades[$id_actividad]['id_actividad']},{$id_empleado}"; ?>"
+                      class="w-full h-8"
+                    >
+                      <?php echo $asignado; ?>
+                    </button>
+                  </form>
+                  <?php } else { ?>
+                    <p class="w-full h-8 flex justify-center items-center"><?php echo $asignado; ?></p>
+                  <?php } ?>
+                </td>
+              <?php } ?>
+            </tr>
+          <?php } ?>
+        </tbody>
+      </table>
+    <?php } ?>
+    <div class="mt-8 mb-4">
+      <h2 class="text-2xl w-max mx-auto mb-4">Gráfico</h2>
+      <div class="w-full mx-auto">
+        <canvas id="grafico"></canvas>
+      </div>
+    </div>
+  </div>
+</body>
+<script>
+const data = [
+  { year: 2010, count: 10 },
+  { year: 2011, count: 20 },
+  { year: 2012, count: 15 },
+  { year: 2013, count: 25 },
+  { year: 2014, count: 22 },
+  { year: 2015, count: 30 },
+  { year: 2016, count: 28 },
+];
+
+const chart = new Chart(document.getElementById('grafico'), {
+  type: 'bar',
+  data: {
+    labels: data.map(row => row.year),
+    datasets: [
+      {
+        label: 'Acquisitions by year',
+        data: data.map(row => row.count)
+      }
+    ]
+  },
+  options: {
+    onClick: (e) => {
+      const canvasPosition = getRelativePosition(e, chart);
+
+      // Substitute the appropriate scale IDs
+      const dataX = chart.scales.x.getValueForPixel(canvasPosition.x);
+      const dataY = chart.scales.y.getValueForPixel(canvasPosition.y);
+    }
+  }
+});
+
+function onSelectChange(id) {
+  const value = document.getElementById(id).value;
+  console.log(value, value === 'null')
+  document.getElementById(`submit_asociar_${id}`).disabled = value === 'null' ? 'true' : '';
+}
+</script>
+</html>
