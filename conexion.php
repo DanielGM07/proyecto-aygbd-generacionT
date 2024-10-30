@@ -11,4 +11,5 @@ $conexion->set_charset("utf8");
 if ($conexion->connect_error) {
     die("Coneexion fallida : ".$conexion->connect_error);
 }
+date_default_timezone_set('America/Argentina/Buenos_Aires');
 ?>

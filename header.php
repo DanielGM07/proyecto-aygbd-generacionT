@@ -11,7 +11,7 @@ if (isset($_COOKIE['usuario_logeado'])) {
 }
 ?>
 <header class="w-full h-16 mb-12 shadow-lg">
-  <div class="w-[800px] mx-auto h-full flex justify-center items-center">
+  <div class="w-[1120px] mx-auto h-full flex justify-center items-center">
     <h1 class="pb-1 text-3xl font-semibold">PROYECTAZO</h1>
     <?php if(isset($_COOKIE['usuario_logeado'])) { ?>
       <div class="flex-1 flex justify-end items-center">

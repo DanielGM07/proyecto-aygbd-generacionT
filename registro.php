@@ -38,8 +38,9 @@ if (isset($_POST['register'])) {
         $error = 'Ya existe un usuario con ese email';
       } else {   
         // Sino, inserto un nuevo usuario en la tabla "usuarios"
-        $query = "INSERT INTO usuarios(nombre, apellido, contraseña, email, es_jefe) 
-        VALUES ('{$nombre}', '{$apellido}', '{$contraseña}', '{$email}', {$es_jefe})";
+        $fecha_actual = date('Y-m-d H:i:s');
+        $query = "INSERT INTO usuarios(nombre, apellido, contraseña, email, es_jefe, fecha_creacion) 
+                  VALUES ('{$nombre}', '{$apellido}', '{$contraseña}', '{$email}', {$es_jefe}, '{$fecha_actual}')";
 
         if ($conexion->query($query)) {
           // Agarro el id del usuario recien creado para la cookie
@@ -47,8 +48,8 @@ if (isset($_POST['register'])) {
           $conexion->close();
           // Guardo la cookie "usuario_logeado" con el usuario y el id separado por un ";"
           setcookie('usuario_logeado', "{$nombre};{$id}");
-          // Y redirecciono al menu
-          header('Location: menu.php');
+          // Y redirecciono a los proyectos
+          header('Location: proyectos.php');
         } else {
           // Hubo un error al crear el usuario, muestro error
           $conexion->close();
