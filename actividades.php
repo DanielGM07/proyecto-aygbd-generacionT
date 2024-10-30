@@ -21,11 +21,15 @@ if (isset($_GET['eliminar'])) {
   // Ejecuto la query para borrar el producto en base al id pasado por parametro
   $query = "DELETE FROM actividades WHERE id = {$id_actividad}";
   $conexion->query($query);
-  $conexion->close();
-  // Lo llevo a las actividades sin el parametro
-  header('Location: actividades.php');
-  // Ya hice lo que queria hacer, no ejecuto el resto del codigo
-  exit();
+  
+  $accion = 'Actividad eliminada exitosamente.';
+} else if (isset($_GET['accion'])) {
+  $get_accion = $_GET['accion'];
+  if ($get_accion == 'agrego') {
+    $accion = 'Actividad creada exitosamente.';
+  } else if ($get_accion == 'actualizo') {
+    $accion = 'Actividad actualizada exitosamente.';
+  }
 }
 
 $query = "SELECT es_jefe FROM usuarios WHERE id = '{$id_usuario}'";
@@ -79,6 +83,7 @@ $estados = [
   <title>Actividades</title>
 </head>
 <body>
+  <?php include('toast.php'); ?>
   <?php include('header.php'); ?>
   <div class="w-max flex gap-4 mx-auto">
     <?php include('sidebar.php') ?>

@@ -27,6 +27,12 @@ $location_matriz = "Location: matriz.php?proyecto={$id_proyecto}&desde={$desde}"
 $query = "SELECT es_jefe FROM usuarios WHERE id = '{$id_usuario}'";
 $es_jefe = $conexion->query($query)->fetch_assoc()['es_jefe'];
 
+if (isset($_GET['accion'])) {
+  if ($_GET['accion'] == 'actualizo') {
+    $accion = 'Actividad actualizada exitosamente.';
+  }
+}
+
 if (isset($_POST['asociar'])) {
   $asociar = $_POST['asociar'];
 
@@ -37,6 +43,8 @@ if (isset($_POST['asociar'])) {
     }
     $query = "INSERT INTO usuario_proyecto (id_proyecto, id_usuario)
               VALUES ({$id_proyecto}, {$id_empleado})";
+
+    $accion = 'Usuario asociado exitosamente.';
   } else if ($asociar == 'actividad') {
     $id_actividad = $_POST['actividad'];
     if (!is_numeric($id_actividad)) {
@@ -45,11 +53,11 @@ if (isset($_POST['asociar'])) {
     $fecha_actual = date('Y-m-d H:i:s');
     $query = "INSERT INTO proyecto_actividad(id_proyecto, id_actividad, estado, fecha_asociado)
               VALUES ({$id_proyecto}, {$id_actividad}, 1, '$fecha_actual')";
+              
+    $accion = 'Actividad asociada exitosamente.';
   }
 
   $conexion->query($query);
-  $conexion->close();
-  header($location_matriz);
 }
 
 if (isset($_POST['asignar'])) {
@@ -60,8 +68,8 @@ if (isset($_POST['asignar'])) {
   $query = "INSERT INTO usuario_actividad (id_usuario, id_actividad, id_proyecto, fecha_asignacion)
             VALUES({$id_empleado}, {$id_actividad}, {$id_proyecto}, '{$fecha_actual}')";
   $conexion->query($query);
-  $conexion->close();
-  header($location_matriz);
+  
+  $accion = 'Actividad asignada exitosamente.';
 } else if (isset($_POST['desasignar'])) {
   $id_actividad = explode(',', $_POST['desasignar'])[0];
   $id_empleado = explode(',', $_POST['desasignar'])[1];
@@ -69,8 +77,8 @@ if (isset($_POST['asignar'])) {
   $query = "DELETE FROM usuario_actividad
             WHERE id_usuario = {$id_empleado} AND id_actividad = {$id_actividad} AND id_proyecto = {$id_proyecto}";
   $conexion->query($query);
-  $conexion->close();
-  header($location_matriz);
+
+  $accion = 'Actividad desasignada exitosamente.';
 }
 
 if (isset($_POST['eliminar'])) {
@@ -88,6 +96,8 @@ if (isset($_POST['eliminar'])) {
 
     $query = "DELETE FROM proyecto_actividad
               WHERE id_proyecto = {$id_proyecto} AND id_actividad = {$id_actividad}";
+              
+    $accion = 'Actividad eliminada exitosamente.';
   } else if ($eliminar == 'empleado') {
     $id_empleado = $_POST['id_empleado'];
     if (!is_numeric($id_empleado)) {
@@ -100,12 +110,11 @@ if (isset($_POST['eliminar'])) {
 
     $query = "DELETE FROM usuario_proyecto
               WHERE id_proyecto = {$id_proyecto} AND id_usuario = {$id_empleado}";
+              
+    $accion = 'Empleado eliminado exitosamente.';
   }
 
   $conexion->query($query);
-
-  $conexion->close();
-  header($location_matriz);
 }
 
 // Traigo la info del proyecto
@@ -130,6 +139,7 @@ $actividades_disponibles = $conexion->query($query);
 $query = "SELECT 
             a.id id_actividad,
             a.nombre actividad,
+            pa.estado,
             u.id id_usuario,
             CONCAT(u.nombre, ' ', u.apellido) empleado,
             IF(ua.id_actividad IS NOT NULL, 'Asignado', '') asignado,
@@ -149,7 +159,7 @@ $lista_actividades = [];
 $lista_empleados = [];
 
 while ($fila = $result->fetch_assoc()) {
-  $actividad = [ "id_actividad" => $fila['id_actividad'], "nombre" => $fila['actividad'] ];
+  $actividad = [ "id_actividad" => $fila['id_actividad'], "nombre" => $fila['actividad'], "estado" => $fila['estado'] ];
   $empleado = [ "id_empleado" => $fila['id_usuario'], "nombre" => $fila['empleado'] ];
   $asignado = [ "asignado" => $fila['asignado'], "fecha_asignacion" => $fila['fecha_asignacion'] ];
 
@@ -188,6 +198,13 @@ $query = "SELECT
 $datos_grafico = $conexion->query($query)->fetch_assoc();
 
 $conexion->close();
+
+$estados = [
+  0 => "",
+  1 => "Pendiente",
+  2 => "En progreso",
+  3 => "Completada"
+];
 ?>
 
 <!DOCTYPE html>
@@ -201,6 +218,7 @@ $conexion->close();
   <title>Matriz</title>
 </head>
 <body>
+  <?php include('toast.php'); ?>
   <?php include('header.php'); ?>
   <div class="w-max flex gap-4 mx-auto">
     <?php include('sidebar.php') ?>
@@ -334,10 +352,11 @@ $conexion->close();
             // Inserto una fila por cada resultado que trajo la query
             // A la cuarta celda le agrego las acciones
             foreach($matriz as $id_actividad => $empleados) {
+              $estado_actividad = $lista_actividades[$id_actividad]['estado'];
             ?>
               <tr>
                 <td class="border-b border-r border-black px-2 py-1 font-bold bg-gray-200 group"> 
-                  <?php if ($es_jefe) { ?>
+                  
                     <form method="POST">
                       <input type="hidden" name="proyecto" value="<?php echo $id_proyecto; ?>" hidden />
                       <input type="hidden" name="id_actividad" value="<?php echo $id_actividad; ?>" hidden />
@@ -347,18 +366,22 @@ $conexion->close();
                       >
                         <?php echo $lista_actividades[$id_actividad]['nombre']; ?>
                       </a>
-                      <button
-                        type="submit"
-                        name="eliminar"
-                        value="actividad"
-                        class="font-bold text-red-600 hidden group-hover:block"
-                      >
-                        Eliminar
-                      </button>
+                      <p class="text-xs
+                      <?php if ($estado_actividad == 1) echo 'text-yellow-600';
+                        else if ($estado_actividad == 2) echo 'text-cyan-600';
+                        else if ($estado_actividad == 3) echo 'text-green-600'; ?>
+                      "><?php echo $estados[$estado_actividad]; ?></p>
+                      <?php if ($es_jefe) { ?>
+                        <button
+                          type="submit"
+                          name="eliminar"
+                          value="actividad"
+                          class="font-bold text-red-600 hidden group-hover:block"
+                        >
+                          Eliminar
+                        </button>
+                      <?php } ?>
                     </form>
-                  <?php } else {
-                    echo $lista_actividades[$id_actividad]['nombre'];
-                  } ?>
                 </td>
                 <?php
                 // Inserto una fila por cada resultado que trajo la query
@@ -405,9 +428,9 @@ $conexion->close();
 </body>
 <script>
 const data = [
-  { estado: 'Pendientes', count: <?php echo $datos_grafico['1']; ?> },
-  { estado: 'En progreso', count: <?php echo $datos_grafico['2']; ?> },
-  { estado: 'Completadas', count: <?php echo $datos_grafico['3']; ?> },
+  { estado: 'Pendientes', count: <?php echo $datos_grafico['1'] ?? 0; ?> },
+  { estado: 'En progreso', count: <?php echo $datos_grafico['2'] ?? 0; ?> },
+  { estado: 'Completadas', count: <?php echo $datos_grafico['3'] ?? 0; ?> },
 ];
 
 const chart = new Chart(document.getElementById('grafico'), {

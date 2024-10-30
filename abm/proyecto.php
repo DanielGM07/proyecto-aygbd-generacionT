@@ -59,6 +59,7 @@ if (isset($_POST['save'])) {
   if ($conexion->query($query)) {
     $conexion->close();
     // Y redirecciono a los proyectos
+    $desde = $desde . (str_contains($desde, '?') ? '&' : '?') . "accion=" . ($agregando ? 'agrego' : 'actualizo');
     header("Location: ../{$desde}");
   } else {
     // Hubo un error al guardar, muestro error

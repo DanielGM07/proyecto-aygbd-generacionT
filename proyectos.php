@@ -21,11 +21,20 @@ if (isset($_GET['eliminar'])) {
   // Ejecuto la query para borrar el producto en base al id pasado por parametro
   $query = "DELETE FROM proyectos WHERE id = {$id_proyecto} and id_jefe = $id_usuario";
   $conexion->query($query);
-  $conexion->close();
-  // Lo llevo a los proyectos sin el parametro
-  header('Location: proyectos.php');
-  // Ya hice lo que queria hacer, no ejecuto el resto del codigo
-  exit();
+  
+  $accion = 'Proyecto eliminado exitosamente.';
+} else if (isset($_GET['accion'])) {
+  switch ($_GET['accion']) {
+    case 'agrego':
+      $accion = 'Proyecto creado exitosamente.';
+      break;
+    case 'actualizo':
+      $accion = 'Proyecto actualizado exitosamente.';
+      break;
+    case 'usuario_registrado':
+      $accion = 'Tu cuenta fue creada existosamente.';
+      break;
+  }
 }
 
 $query = "SELECT es_jefe FROM usuarios WHERE id = '{$id_usuario}'";
@@ -64,6 +73,7 @@ $estados = [
   <title>Proyectos</title>
 </head>
 <body>
+  <?php include('toast.php'); ?>
   <?php include('header.php'); ?>
   <div class="w-max flex gap-4 mx-auto">
     <?php include('sidebar.php') ?>
