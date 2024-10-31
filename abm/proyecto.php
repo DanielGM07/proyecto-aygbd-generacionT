@@ -75,63 +75,67 @@ if (isset($_POST['save'])) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
   <title>Proyecto</title>
 </head>
-<body>
+<body class="w-screen h-screen flex flex-col">
   <?php include('../header.php'); ?>
-  <div class="w-max flex gap-4 mx-auto">
+  <div class="h-0 flex-1 w-full flex">
     <?php include('../sidebar.php') ?>
-    <form method="POST" class="w-[800px] p-8 shadow-2xl rounded-xl">
-      <h2 class="mb-8 text-2xl font-semibold text-center">
-        <?php if ($agregando) echo 'Crear proyecto'; else echo 'Editar proyecto' ?>
-      </h2>
-      <div class="mb-4">
-        <label for="nombre" class="text-gray-500">Nombre</label>
-        <input
-          id="nombre"
-          name="nombre"
-          class="w-full px-2 py-1 border-2 border-black rounded-lg"
-          value="<?php echo $item['nombre'] ?? ''; ?>"
-          maxlength="1000"
-          required
-        />
-      </div>
-      <div class="mb-4">
-        <label for="descripcion" class="text-gray-500">Descripción</label>
-        <input
-          id="descripcion"
-          name="descripcion"
-          class="w-full px-2 py-1 border-2 border-black rounded-lg"
-          value="<?php echo $item['descripcion'] ?? ''; ?>"
-          maxlength="50"
-          required
-        />
-      </div>
-      <div class="mb-4" <?php if ($agregando) echo 'hidden'; ?>>
-        <label for="estado" class="text-gray-500">Estado</label>
-        <select
-          id="estado"
-          name="estado"
-          class="w-full px-2 py-1 border-2 border-black rounded-lg bg-transparent"
+    <div class="flex-1 overflow-y-auto">
+      <form method="POST" class="p-8">
+        <h2 class="mb-4 text-3xl font-bold">
+          <?php if ($agregando) echo 'Crear proyecto'; else echo 'Editar proyecto' ?>
+        </h2>
+        <div class="mb-4">
+          <label for="nombre" class="block mb-2 text-sm text-gray-500">Nombre</label>
+          <input
+            id="nombre"
+            name="nombre"
+            class="w-full p-2 border-2 border-gray-200 rounded-md"
+            value="<?php echo $item['nombre'] ?? ''; ?>"
+            maxlength="1000"
+            required
+          />
+        </div>
+        <div class="mb-4">
+          <label for="descripcion" class="block mb-2 text-sm text-gray-500">Descripción</label>
+          <input
+            id="descripcion"
+            name="descripcion"
+            class="w-full p-2 border-2 border-gray-200 rounded-md"
+            value="<?php echo $item['descripcion'] ?? ''; ?>"
+            maxlength="50"
+            required
+          />
+        </div>
+        <div class="mb-4" <?php if ($agregando) echo 'hidden'; ?>>
+          <label for="estado" class="block mb-2 text-sm text-gray-500">Estado</label>
+          <select
+            id="estado"
+            name="estado"
+            class="w-full p-2 border-2 border-gray-200 rounded-md bg-transparent"
+          >
+            <option value="1" <?php if ($item['estado'] == 1) echo 'selected'; ?> >Pendiente</option>
+            <option value="2" <?php if ($item['estado'] == 2) echo 'selected'; ?> >En progreso</option>
+            <option value="3" <?php if ($item['estado'] == 3) echo 'selected'; ?> >Completado</option>
+          </select>
+        </div>
+        <button
+          type="submit"
+          class="w-full py-2 mb-2 bg-cyan-600 hover:bg-cyan-500 text-white text-center rounded-md transition-colors cursor-pointer
+                flex justify-center items-center"
+          name="save"
         >
-          <option value="1" <?php if ($item['estado'] == 1) echo 'selected'; ?> >Pendiente</option>
-          <option value="2" <?php if ($item['estado'] == 2) echo 'selected'; ?> >En progreso</option>
-          <option value="3" <?php if ($item['estado'] == 3) echo 'selected'; ?> >Completado</option>
-        </select>
-      </div>
-      <input
-        type="submit"
-        class="w-full py-2 mb-2
-        <?php if ($agregando) echo "bg-cyan-600 hover:bg-cyan-500"; else echo "bg-sky-600 hover:bg-sky-500"; ?>
-        text-white text-center font-semibold rounded-xl transition-colors cursor-pointer"
-        value="Guardar"
-        name="save"
-      />
-      <a href="../<?php echo $desde; ?>" class="block w-full py-2 bg-gray-100 text-center rounded-xl">Atrás</a>
-      <p class="mt-2 text-red-600 text-center">
-        <?php echo $error ?? ''; ?>
-      </p>
-    </form>
+          <div class="material-symbols-outlined text-base mr-4">save</div>
+          <span class="pb-0.5">Guardar</span>
+        </button>
+        <a href="../<?php echo $desde; ?>" class="block w-full py-2 bg-gray-100 text-center rounded-xl">Atrás</a>
+        <p class="mt-2 text-red-600 text-center">
+          <?php echo $error ?? ''; ?>
+        </p>
+      </form>
+    </div>
   </div>
 </body>
 </html>

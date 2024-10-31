@@ -85,7 +85,7 @@ if (isset($_POST['eliminar'])) {
   $eliminar = $_POST['eliminar'];
 
   if ($eliminar == 'actividad') {
-    $id_actividad = $_POST['id_actividad'];
+    $id_actividad = $_POST['actividad'];
     if (!is_numeric($id_actividad)) {
       header($location_matriz);
     }
@@ -99,7 +99,7 @@ if (isset($_POST['eliminar'])) {
               
     $accion = 'Actividad eliminada exitosamente.';
   } else if ($eliminar == 'empleado') {
-    $id_empleado = $_POST['id_empleado'];
+    $id_empleado = $_POST['empleado'];
     if (!is_numeric($id_empleado)) {
       header($location_matriz);
     }
@@ -128,12 +128,26 @@ $query = "SELECT u.id id, CONCAT(u.nombre, ' ', u.apellido) nombre
           WHERE es_jefe = 0 AND up.id_proyecto IS NULL";
 $empleados_disponibles = $conexion->query($query);
 
+// Traigo los empleados asociados
+$query = "SELECT u.id id, CONCAT(u.nombre, ' ', u.apellido) nombre
+          FROM usuarios u
+          LEFT JOIN usuario_proyecto up ON u.id = up.id_usuario AND up.id_proyecto = {$id_proyecto}
+          WHERE es_jefe = 0 AND up.id_proyecto IS NOT NULL";
+$empleados_asociados = $conexion->query($query);
+
 // Traigo las actividades disponibles
 $query = "SELECT a.id id, a.nombre nombre
           FROM actividades a
           LEFT JOIN proyecto_actividad pa ON a.id = pa.id_actividad AND pa.id_proyecto = {$id_proyecto}
           WHERE pa.id_proyecto IS NULL";
 $actividades_disponibles = $conexion->query($query);
+
+// Traigo las actividades asociadas
+$query = "SELECT a.id id, a.nombre nombre
+          FROM actividades a
+          LEFT JOIN proyecto_actividad pa ON a.id = pa.id_actividad AND pa.id_proyecto = {$id_proyecto}
+          WHERE pa.id_proyecto IS NOT NULL";
+$actividades_asociadas = $conexion->query($query);
 
 // Traigo la info necesaria para la matriz
 $query = "SELECT 
@@ -180,14 +194,6 @@ while ($fila = $result->fetch_assoc()) {
   $matriz[$actividad['id_actividad']][$empleado['id_empleado']] = $asignado;
 }
 
-if (empty($matriz)) {
-  $query = "SELECT 1 FROM usuario_proyecto WHERE id_proyecto = {$id_proyecto}";
-  $empleados_asociados = $conexion->query($query)->num_rows;
-
-  $query = "SELECT 1 FROM proyecto_actividad WHERE id_proyecto = {$id_proyecto}";
-  $actividades_asociadas = $conexion->query($query)->num_rows;
-}
-
 // Hago la consulta para el gráfico de actividades
 $query = "SELECT 
             SUM(CASE WHEN estado = '1' THEN 1 ELSE 0 END) '1',
@@ -217,210 +223,261 @@ $estados = [
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" integrity="sha512-ZwR1/gSZM3ai6vCdI+LVF1zSq/5HznD3ZSTk7kajkaj4D292NLuduDCO1c/NT8Id+jE58KYLKT7hXnbtryGmMg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <title>Matriz</title>
 </head>
-<body>
+<body class="w-screen h-screen flex flex-col">
   <?php include('toast.php'); ?>
   <?php include('header.php'); ?>
-  <div class="w-max flex gap-4 mx-auto">
+  <div class="h-0 flex-1 w-full flex">
     <?php include('sidebar.php') ?>
-    <div class="w-[800px] p-8 shadow-lg rounded-lg">
-      <a href="<?php echo $desde; ?>" class="py-2 px-3 text-sm rounded-xl border-2 border-black hover:bg-gray-100">Volver</a>
-      <h2 class="text-3xl w-max mx-auto mb-8">Dashboard de <?php echo $proyecto['nombre']; ?></h2>
-      <h2 class="text-2xl w-max mx-auto mb-4">Matriz de responsabilidades</h2>
-      <?php if ($es_jefe) { ?>
-        <div class="flex gap-2">
-          <form method="POST" class="flex">
-            <input type="hidden" name="proyecto" value="<?php echo $id_proyecto; ?>" hidden />
-            <select name="empleado" id="empleado" class="max-w-80 h-10 px-2 rounded-l-xl" onchange="onSelectChange('empleado')">
-              <?php if ($empleados_disponibles->num_rows == 0) { ?>
-                <option value="null">No quedan empleados</option>
-              <?php } else { ?>
-                <option value="null">Asociar empleado</option>
-                <?php while($empleado = $empleados_disponibles->fetch_assoc()) { ?>
-                  <option value="<?php echo $empleado['id']; ?>"><?php echo $empleado['nombre']; ?></option>
-                <?php }
-              }?>
-            </select>
-            <button
-              id="submit_asociar_empleado"
-              type="submit"
-              class="flex w-max px-2 py-2 mb-4 bg-orange-600 enabled:hover:bg-orange-500 text-white disabled:opacity-50 font-semibold rounded-r-xl transition-colors"
-              name="asociar"
-              value="empleado"
-              disabled
-            >
-              <span class="material-symbols-outlined">add</span>
-            </button>
-          </form>
-          <form method="POST" class="flex">
-            <input type="hidden" name="proyecto" value="<?php echo $id_proyecto; ?>" hidden />
-            <select name="actividad" id="actividad" class="max-w-80 h-10 px-2 rounded-l-xl" onchange="onSelectChange('actividad')">
-              <?php if ($actividades_disponibles->num_rows == 0) { ?>
-                <option value="null">No quedan actividades</option>
-              <?php } else { ?>
-                <option value="null">Asociar actividad</option>
-                <?php while($actividad = $actividades_disponibles->fetch_assoc()) { ?>
-                  <option value="<?php echo $actividad['id']; ?>"><?php echo $actividad['nombre']; ?></option>
-                <?php }
-              } ?>
-            </select>
-            <button
-              id="submit_asociar_actividad"
-              type="submit"
-              class="flex w-max px-2 py-2 mb-4 bg-orange-600 enabled:hover:bg-orange-500 text-white disabled:opacity-50 font-semibold rounded-r-xl transition-colors"
-              name="asociar"
-              value="actividad"
-              disabled
-            >
-              <span class="material-symbols-outlined">add</span>
-            </button>
-          </form>
+    <div class="flex-1 overflow-y-auto">
+      <div class="p-8">
+        <div class="flex items-center mb-8">
+          <a href="<?php echo $desde; ?>" class="w-max py-1 px-3 text-sm flex items-center rounded-md border border-gray-200 hover:bg-gray-100 transition-colors">
+            <span class="material-symbols-outlined text-lg mr-2">chevron_backward</span>  
+            <p class="pb-0.5">Volver</p>
+          </a>
+          <h2 class="text-3xl font-bold ml-4 pb-1">Dashboard de <?php echo $proyecto['nombre']; ?></h2>
         </div>
-      <?php }
-      if (empty($matriz)) { ?>
-        <span class="w-full py-2 bg-gray-100 rounded-xl flex flex-col justify-center items-center">
-          <p>
-            Tenés que cumplir los siguientes requisitos para mostrar la matriz:
-          </p>
-          <div class="flex items-center">
-            <?php if (empty($empleados_asociados)) { ?>
-              <div
-                class="mr-1 material-symbols-outlined text-red-600 text-xl"
-              >
-                close
+        <?php if ($es_jefe) { ?>
+          <div class="flex gap-8">
+            <div class="flex-1">
+              <p class="text-2xl mb-4 font-semibold text-center">Empleados</p>
+              <div class="w-full border border-gray-200 rounded-lg overflow-hidden">
+                <div class="flex border-b border-gray-200">
+                  <div class="flex-1 p-4 font-bold text-start border-r border-gray-200">Disponibles</div>
+                  <div class="flex-1 p-4 font-bold text-end">Asociados</div>
+                </div>
+                <div class="h-[16.75rem] overflow-y-auto">
+                  <div class="flex">
+                    <div class="h-max flex-1 flex-col">
+                      <?php if ($empleados_disponibles->num_rows == 0) { ?>
+                        <p class="p-4 text-center text-gray-400">No quedan empleados</p>
+                      <?php } else while($empleado = $empleados_disponibles->fetch_assoc()) { ?>
+                        <div class="p-4 border-b border-gray-200 flex items-center">
+                          <p class="flex-1"><?php echo $empleado['nombre']; ?></p>
+                          <form method="POST" class="w-max h-max">
+                            <input type="hidden" name="proyecto" value="<?php echo $id_proyecto; ?>" hidden />
+                            <input type="hidden" name="empleado" value="<?php echo $empleado['id']; ?>" hidden />
+                            <button
+                              type="submit"
+                              class="py-0.5 px-2 border border-gray-200 rounded-md hover:bg-gray-100 transition-colors"
+                              title="Asociar empleado"
+                              name="asociar"
+                              value="empleado"
+                            >
+                              <span class="material-symbols-outlined text-lg">chevron_right</span>  
+                            </button>
+                          </form>
+                        </div>
+                      <?php }?>
+                    </div>
+                    <div class="w-[1px] bg-gray-200"></div>
+                    <div class="flex-1 flex-col">
+                      <?php if ($empleados_asociados->num_rows == 0) { ?>
+                        <p class="p-4 text-center text-gray-400">No hay empleados asociados</p>
+                      <?php } else while($empleado = $empleados_asociados->fetch_assoc()) { ?>
+                        <div class="p-4 border-b border-gray-200 flex items-center">
+                          <form method="POST" class="w-max h-max">
+                            <input type="hidden" name="proyecto" value="<?php echo $id_proyecto; ?>" hidden />
+                            <input type="hidden" name="empleado" value="<?php echo $empleado['id']; ?>" hidden />
+                            <button
+                              type="submit"
+                              class="py-0.5 px-2 border border-gray-200 rounded-md hover:bg-gray-100 transition-colors"
+                              title="Eliminar empleado"
+                              name="eliminar"
+                              value="empleado"
+                            >
+                              <span class="material-symbols-outlined text-lg">chevron_left</span>  
+                            </button>
+                          </form>
+                          <p class="flex-1 text-end"><?php echo $empleado['nombre']; ?></p>
+                        </div>
+                      <?php }?>
+                    </div>
+                  </div>
+                </div>
               </div>
-              Asociar al menos 1 empleado
-            <?php } else { ?>
-              <div
-                class="mr-1 material-symbols-outlined text-green-600 text-xl"
-              >
-                check
+            </div>
+            <div class="flex-1">
+              <p class="text-2xl mb-4 font-semibold text-center">Actividades</p>
+              <div class="w-full border border-gray-200 rounded-lg overflow-hidden">
+                <div class="flex border-b border-gray-200">
+                  <div class="flex-1 p-4 font-bold text-start border-r border-gray-200">Disponibles</div>
+                  <div class="flex-1 p-4 font-bold text-end">Asociadas</div>
+                </div>
+                <div class="h-[16.75rem] overflow-y-auto">
+                  <div class="flex">
+                    <div class="h-max flex-1 flex-col">
+                      <?php if ($actividades_disponibles->num_rows == 0) { ?>
+                        <p class="p-4 text-center text-gray-400">No quedan actividades</p>
+                      <?php } else while($actividad = $actividades_disponibles->fetch_assoc()) { ?>
+                        <div class="p-4 border-b border-gray-200 flex items-center">
+                          <p class="flex-1"><?php echo $actividad['nombre']; ?></p>
+                          <form method="POST" class="w-max h-max">
+                            <input type="hidden" name="proyecto" value="<?php echo $id_proyecto; ?>" hidden />
+                            <input type="hidden" name="actividad" value="<?php echo $actividad['id']; ?>" hidden />
+                            <button
+                              type="submit"
+                              class="py-0.5 px-2 border border-gray-200 rounded-md hover:bg-gray-100 transition-colors"
+                              title="Asociar actividad"
+                              name="asociar"
+                              value="actividad"
+                            >
+                              <span class="material-symbols-outlined text-lg">chevron_right</span>  
+                            </button>
+                          </form>
+                        </div>
+                      <?php }?>
+                    </div>
+                    <div class="w-[1px] bg-gray-200"></div>
+                    <div class="flex-1 flex-col">
+                      <?php if ($actividades_asociadas->num_rows == 0) { ?>
+                        <p class="p-4 text-center text-gray-400">No hay actividades asociadas</p>
+                      <?php } else while($actividad = $actividades_asociadas->fetch_assoc()) { ?>
+                        <div class="p-4 border-b border-gray-200 flex items-center">
+                          <form method="POST" class="w-max h-max">
+                            <input type="hidden" name="proyecto" value="<?php echo $id_proyecto; ?>" hidden />
+                            <input type="hidden" name="actividad" value="<?php echo $actividad['id']; ?>" hidden />
+                            <button
+                              type="submit"
+                              class="py-0.5 px-2 border border-gray-200 rounded-md hover:bg-gray-100 transition-colors"
+                              title="Eliminar actividad"
+                              name="eliminar"
+                              value="actividad"
+                            >
+                              <span class="material-symbols-outlined text-lg">chevron_left</span>  
+                            </button>
+                          </form>
+                          <p class="flex-1 text-end"><?php echo $actividad['nombre']; ?></p>
+                        </div>
+                      <?php }?>
+                    </div>
+                  </div>
+                </div>
               </div>
-              Ya tenés <?php echo $empleados_asociados; ?> empleado/s asociados.
-            <?php } ?>
+            </div>
           </div>
-          <div class="flex items-center">
-            <?php if (empty($actividades_asociadas)) { ?>
-              <div
-                class="mr-1 material-symbols-outlined text-red-600 text-xl"
-              >
-                close
-              </div>
-              Asociar al menos 1 actividad
-            <?php } else { ?>
-              <div
-                class="mr-1 material-symbols-outlined text-green-600 text-xl"
-              >
-                check
-              </div>
-              Ya tenés <?php echo $actividades_asociadas; ?> actividad/es asociadas
-            <?php } ?>
-          </div>
-        </span>
-      <?php } else { ?>
-        <table class="w-full border-2 border-black">
-
-          <thead>
-            <tr class="bg-gray-200">
-              <th class="w-28 border-b border-r border-black p-2">Actividades</th>
-              <?php foreach(array_keys(reset($matriz)) as $id_empleado) { ?>
-                <th
-                  class="w-28 border-b border-r border-black p-2 group <?php if ($id_empleado == $id_usuario) echo 'text-orange-600'; ?>"
+        <?php } ?>
+        <h2 class="text-2xl font-semibold w-max mx-auto mt-8 mb-4">Matriz de responsabilidades</h2>
+        <?php if (empty($matriz)) { ?>
+          <span class="w-full py-2 bg-gray-50 text-gray-600 rounded-xl flex flex-col justify-center items-center">
+            <p>
+              Tenés que cumplir los siguientes requisitos para mostrar la matriz:
+            </p>
+            <div class="flex items-center">
+              <?php if ($empleados_asociados->num_rows == 0) { ?>
+                <div
+                  class="mr-1 material-symbols-outlined text-red-600 text-xl"
                 >
-                  <?php if ($es_jefe) { ?>
-                    <form method="POST" class="flex flex-col items-center">
-                      <input type="hidden" name="proyecto" value="<?php echo $id_proyecto; ?>" hidden />
-                      <input type="hidden" name="id_empleado" value="<?php echo $id_empleado; ?>" hidden />
-                      <?php echo $lista_empleados[$id_empleado]['nombre']; ?>
-                      <button
-                        type="submit"
-                        name="eliminar"
-                        value="empleado"
-                        class="w-max font-bold text-red-600 hidden group-hover:block"
-                      >
-                        Eliminar
-                      </button>
-                    </form>
-                  <?php } else {
-                    echo $lista_empleados[$id_empleado]['nombre'];
-                  } ?>
-                </th>
+                  close
+                </div>
+                Asociar al menos 1 empleado
+              <?php } else { ?>
+                <div
+                  class="mr-1 material-symbols-outlined text-green-600 text-xl"
+                >
+                  check
+                </div>
+                Ya tenés <?php echo $empleados_asociados->num_rows; ?> empleado/s asociados.
               <?php } ?>
-            </tr>
-          </thead>
-          <tbody>
-            <?php
-            // Inserto una fila por cada resultado que trajo la query
-            // A la cuarta celda le agrego las acciones
-            foreach($matriz as $id_actividad => $empleados) {
-              $estado_actividad = $lista_actividades[$id_actividad]['estado'];
-            ?>
-              <tr>
-                <td class="border-b border-r border-black px-2 py-1 font-bold bg-gray-200 group"> 
-                  
-                    <form method="POST">
-                      <input type="hidden" name="proyecto" value="<?php echo $id_proyecto; ?>" hidden />
-                      <input type="hidden" name="id_actividad" value="<?php echo $id_actividad; ?>" hidden />
-                      <a
-                        class="hover:text-purple-500 transition-colors"
-                        href="abm/actividad.php?id=<?php echo $id_actividad; ?>&proyecto=<?php echo $id_proyecto; ?>&desde=matriz.php?proyecto=<?php echo $id_proyecto; ?>"
-                      >
-                        <?php echo $lista_actividades[$id_actividad]['nombre']; ?>
-                      </a>
-                      <p class="text-xs
-                      <?php if ($estado_actividad == 1) echo 'text-yellow-600';
-                        else if ($estado_actividad == 2) echo 'text-cyan-600';
-                        else if ($estado_actividad == 3) echo 'text-green-600'; ?>
-                      "><?php echo $estados[$estado_actividad]; ?></p>
-                      <?php if ($es_jefe) { ?>
-                        <button
-                          type="submit"
-                          name="eliminar"
-                          value="actividad"
-                          class="font-bold text-red-600 hidden group-hover:block"
-                        >
-                          Eliminar
-                        </button>
-                      <?php } ?>
-                    </form>
-                </td>
+            </div>
+            <div class="flex items-center">
+              <?php if ($actividades_asociadas->num_rows == 0) { ?>
+                <div
+                  class="mr-1 material-symbols-outlined text-red-600 text-xl"
+                >
+                  close
+                </div>
+                Asociar al menos 1 actividad
+              <?php } else { ?>
+                <div
+                  class="mr-1 material-symbols-outlined text-green-600 text-xl"
+                >
+                  check
+                </div>
+                Ya tenés <?php echo $actividades_asociadas->num_rows; ?> actividad/es asociadas
+              <?php } ?>
+            </div>
+          </span>
+        <?php } else { ?>
+          <div class="w-full border border-gray-200 rounded-lg overflow-hidden">
+            <table class="w-full">
+              <thead>
+                <tr class="bg-gray-50">
+                  <th class="w-28 border-b border-gray-200 p-4 text-start">Actividades</th>
+                  <?php foreach(array_keys(reset($matriz)) as $id_empleado) { ?>
+                    <th
+                      class="w-28 border-b border-gray-200 p-4 group <?php if ($id_empleado == $id_usuario) echo 'text-orange-600'; ?>"
+                    >
+                      <?php echo $lista_empleados[$id_empleado]['nombre']; ?>
+                    </th>
+                  <?php } ?>
+                </tr>
+              </thead>
+              <tbody>
                 <?php
                 // Inserto una fila por cada resultado que trajo la query
                 // A la cuarta celda le agrego las acciones
-                foreach($empleados as $id_empleado => $asignado) {
+                foreach($matriz as $id_actividad => $empleados) {
+                  $estado_actividad = $lista_actividades[$id_actividad]['estado'];
                 ?>
-                  <td class="border-b border-r border-black px-2 py-1<?php if ($asignado['asignado']) echo ' bg-orange-400 font-semibold'; ?>">
-                    <?php if ($es_jefe) { ?>
-                    <form method="POST" class="flex justify-center">
-                      <input type="hidden" name="proyecto" value="<?php echo $id_proyecto; ?>" hidden />
-                      <button
-                        type="submit"
-                        name="<?php echo $asignado['asignado'] ? 'desasignar' : 'asignar';  ?>"
-                        value="<?php echo "{$lista_actividades[$id_actividad]['id_actividad']},{$id_empleado}"; ?>"
-                        class="w-full h-max min-h-8"
-                      >
-                        <div class="flex flex-col">
-                          <p><?php echo $asignado['asignado']; ?></p>
-                          <p class="text-xs"><?php echo $asignado['fecha_asignacion'] ?></p>
-                        </div>
-                      </button>
-                    </form>
-                    <?php } else { ?>
-                      <div class="flex flex-col justify-center items-center">
-                        <p><?php echo $asignado['asignado']; ?></p>
-                        <p class="text-xs"><?php echo $asignado['fecha_asignacion'] ?></p>
-                      </div>
+                  <tr class="border-b border-gray-200 last:border-b-0">
+                    <td class="bg-gray-50 p-4 font-bold group"> 
+                        <form method="POST">
+                          <input type="hidden" name="proyecto" value="<?php echo $id_proyecto; ?>" hidden />
+                          <input type="hidden" name="id_actividad" value="<?php echo $id_actividad; ?>" hidden />
+                          <a
+                            class="hover:text-purple-500 transition-colors"
+                            href="abm/actividad.php?id=<?php echo $id_actividad; ?>&proyecto=<?php echo $id_proyecto; ?>&desde=matriz.php?proyecto=<?php echo $id_proyecto; ?>"
+                          >
+                            <?php echo $lista_actividades[$id_actividad]['nombre']; ?>
+                          </a>
+                          <p class="<?php if ($estado_actividad == 1) echo 'text-yellow-600';
+                            else if ($estado_actividad == 2) echo 'text-cyan-600';
+                            else if ($estado_actividad == 3) echo 'text-green-600'; ?>">
+                            <?php echo $estados[$estado_actividad]; ?>
+                          </p>
+                        </form>
+                    </td>
+                    <?php
+                    // Inserto una fila por cada resultado que trajo la query
+                    // A la cuarta celda le agrego las acciones
+                    foreach($empleados as $id_empleado => $asignado) {
+                    ?>
+                      <td class="<?php if ($asignado['asignado']) echo 'bg-orange-400 font-semibold'; ?>">
+                        <?php if ($es_jefe) { ?>
+                        <form method="POST" class="flex justify-center">
+                          <input type="hidden" name="proyecto" value="<?php echo $id_proyecto; ?>" hidden />
+                          <button
+                            type="submit"
+                            name="<?php echo $asignado['asignado'] ? 'desasignar' : 'asignar';  ?>"
+                            value="<?php echo "{$lista_actividades[$id_actividad]['id_actividad']},{$id_empleado}"; ?>"
+                            class="w-full h-max min-h-8"
+                          >
+                            <div class="flex flex-col">
+                              <p><?php echo $asignado['asignado']; ?></p>
+                              <p class="text-xs"><?php echo $asignado['fecha_asignacion'] ?></p>
+                            </div>
+                          </button>
+                        </form>
+                        <?php } else { ?>
+                          <div class="flex flex-col justify-center items-center">
+                            <p><?php echo $asignado['asignado']; ?></p>
+                            <p class="text-xs"><?php echo $asignado['fecha_asignacion'] ?></p>
+                          </div>
+                        <?php } ?>
+                      </td>
                     <?php } ?>
-                  </td>
+                  </tr>
                 <?php } ?>
-              </tr>
-            <?php } ?>
-          </tbody>
-        </table>
-      <?php } ?>
-      <div class="mt-8 mb-4">
-        <h2 class="text-2xl w-max mx-auto mb-4">Resúmen de actividades</h2>
-        <div class="w-full mx-auto">
-          <canvas id="grafico"></canvas>
+              </tbody>
+            </table>
+          </div>
+        <?php } ?>
+        <div class="w-full mt-8 b-4">
+          <h2 class="text-2xl font-semibold w-max mx-auto mb-4">Resúmen de actividades</h2>
+          <div class="w-1/2 mx-auto">
+            <canvas id="grafico"></canvas>
+          </div>
         </div>
       </div>
     </div>

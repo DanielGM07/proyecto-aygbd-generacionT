@@ -10,21 +10,25 @@ if (isset($_COOKIE['usuario_logeado'])) {
   $es_jefe = $conexion->query($query)->fetch_assoc()['es_jefe'] == 1;
 }
 ?>
-<header class="w-full h-16 mb-12 shadow-lg">
-  <div class="w-[1120px] mx-auto h-full flex justify-center items-center">
-    <h1 class="pb-1 text-3xl font-semibold">PROYECTAZO</h1>
-    <?php if(isset($_COOKIE['usuario_logeado'])) { ?>
+<header class="w-full h-16 bg-zinc-50 border-b border-b-gray-200 flex">
+  <div class="w-[300px] h-full pl-4 flex items-center border-r border-gray-200">
+    <div class="material-symbols-outlined text-2xl pt-0.5">group</div>
+    <h1 class="ml-2 text-2xl font-semibold">PROYECTAZO</h1>
+  </div>
+  <?php if(isset($_COOKIE['usuario_logeado'])) { ?>
+    <div class="flex-1 px-8 flex items-center">
+      <p class="text-lg font-semibold">
+        Hola, <?php echo $usuario; ?> <?php if($es_jefe) { echo '( JEFE )'; } ?>
+      </p>
       <div class="flex-1 flex justify-end items-center">
-        <p class="text-lg italic">
-          Hola, <?php echo $usuario; ?> <?php if($es_jefe) { ?> <strong>( JEFE )</strong> <?php } ?>
-        </p>
         <a
           href="logout.php"
-          class="flex w-max px-8 py-2 ml-4 bg-red-600 hover:bg-red-500 text-white font-semibold rounded-xl transition-colors"
+          class="flex w-max py-2 px-4 ml-4 bg-red-400 hover:bg-red-300 text-white font-semibold rounded-md transition-colors"
         >
+        <div class="material-symbols-outlined text-base mr-4">logout</div>
           Cerrar Sesión
         </a>
       </div>
-    <?php } ?>
-  </div>
+    </div>
+  <?php } ?>
 </header>
