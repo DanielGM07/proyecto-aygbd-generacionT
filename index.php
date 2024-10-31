@@ -50,8 +50,8 @@ if (isset($_POST['login'])) {
   </header>
   <div class="w-[1120px] mx-auto flex">
     <div class="flex-1 pt-28">
-      <h2 class="text-6xl font-bold mb-4">Bienvendio a Proyectazo</h2>
-      <p class="text-gray-600 text-lg">Bienvenido al proyecto de Daniel Guibarra Mendoza.</p>
+      <h2 class="text-6xl font-bold mb-4">Bienvenido a Proyectazo</h2>
+      <p class="text-gray-600 text-lg">Bienvenido al proyecto de Daniel&nbsp;Guibarra&nbsp;Mendoza, Santiago&nbsp;Burd, Agustin&nbsp;Pancrazi, Tomas&nbsp;Garcia y Juan&nbsp;Fernandez.</p>
       <p class="text-gray-600 text-lg mb-6">Al ingresar, vas a poder manejar proyectos y administrar una Matriz de Responsabilidad por cada uno.</p>
     </div>
     <form method="POST" class="w-[500px] p-6 rounded-lg border border-gray-200">

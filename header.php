@@ -22,11 +22,11 @@ if (isset($_COOKIE['usuario_logeado'])) {
       </p>
       <div class="flex-1 flex justify-end items-center">
         <a
-          href="logout.php"
+          href="/proyecto-aygbd-generacionT/logout.php"
           class="flex w-max py-2 px-4 ml-4 bg-red-400 hover:bg-red-300 text-white font-semibold rounded-md transition-colors"
         >
         <div class="material-symbols-outlined text-base mr-4">logout</div>
-          Cerrar Sesión
+          Cerrar sesión
         </a>
       </div>
     </div>
