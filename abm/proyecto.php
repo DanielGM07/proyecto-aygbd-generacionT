@@ -3,12 +3,12 @@ include('../conexion.php');
 
 // Si la cookie "usuario_logeado" esta vacia, lo devuelvo al index
 if(empty($_COOKIE['usuario_logeado'])) {
-  header('Location: index.php');
+  header('Location: ../index.php');
 }
 
 // Si no se paso un "id" en la url, lo devuelvo a los proyectos
 if (!isset($_GET['id']) || $_GET['id'] == '') {
-  header('Location: proyectos.php');
+  header('Location: ../proyectos.php');
 }
 
 // Agarro el id_proyecto del parametro "id"
