@@ -48,8 +48,8 @@ if (isset($_POST['register'])) {
           $conexion->close();
           // Guardo la cookie "usuario_logeado" con el usuario y el id separado por un ";"
           setcookie('usuario_logeado', "{$nombre};{$id}");
-          // Y redirecciono a los proyectos
-          header('Location: proyectos.php?accion=usuario_registrado');
+          // Y redirecciono al home
+          header('Location: home.php?accion=usuario_registrado');
         } else {
           // Hubo un error al crear el usuario, muestro error
           $conexion->close();

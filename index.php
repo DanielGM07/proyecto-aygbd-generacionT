@@ -27,8 +27,8 @@ if (isset($_POST['login'])) {
         $nombre = $primer_resultado["nombre"];
         // Guardo la cookie "usuario_logeado" con el nombre y el id separado por un ";"
         setcookie('usuario_logeado', "{$nombre};{$id}");
-        // Y redirecciono a los proyectos
-        header('Location: proyectos.php');
+        // Y redirecciono al home
+        header('Location: home.php');
     }
   }
 }
