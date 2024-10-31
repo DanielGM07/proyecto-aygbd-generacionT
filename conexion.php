@@ -2,7 +2,7 @@
 $servername = "localhost";
 $username = "root";
 $password = "";
-$dbname = "matriz_resp_prueba";
+$dbname = "aygbd";
 $port = "3306";
 
 // Creo la conexion a la BDD
